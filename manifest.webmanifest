@@ -1,0 +1,19 @@
+{
+  "name": "客戶存摺",
+  "short_name": "客戶存摺",
+  "description": "客戶管理、收款追蹤、月度利潤計算工具",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#141d2c",
+  "theme_color": "#141d2c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

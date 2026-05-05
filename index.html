@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>客戶存摺</title>
+    <meta name="theme-color" content="#141d2c" />
+    <meta name="description" content="客戶管理、收款追蹤、月度利潤計算工具" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="客戶存摺" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
@@ -20,14 +28,12 @@
           <div class="blob"></div>
           <div class="book">
             <div class="book-page"></div>
-            <div class="book-face">
-              <span></span><i></i><i></i><i></i>
-            </div>
+            <div class="book-face"><span></span><i></i><i></i><i></i></div>
           </div>
         </div>
         <div class="splash-copy">
           <h1>客戶存摺</h1>
-          <p>客戶管理・收款追蹤・智慧掌握</p>
+          <p>客戶管理・收款追蹤・月度利潤</p>
         </div>
         <div class="dots"><b></b><b></b><b></b></div>
         <button class="primary wide" id="startButton" type="button">開始使用</button>
@@ -40,12 +46,9 @@
             <p id="storageLabel">訪客模式，本機儲存</p>
             <h1>客戶存摺</h1>
           </div>
-          <div class="header-actions">
-            <button class="icon-btn" id="searchToggle" type="button" aria-label="搜尋">
-              <svg viewBox="0 0 24 24"><path d="M9.5 3a6.5 6.5 0 0 1 5.15 10.46l4.45 4.44-1.4 1.42-4.46-4.45A6.5 6.5 0 1 1 9.5 3Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg>
-            </button>
-            <button class="add-btn" data-action="new" type="button" aria-label="新增客戶">+</button>
-          </div>
+          <button class="icon-btn" id="searchToggle" type="button" aria-label="搜尋">
+            <svg viewBox="0 0 24 24"><path d="M9.5 3a6.5 6.5 0 0 1 5.15 10.46l4.45 4.44-1.4 1.42-4.46-4.45A6.5 6.5 0 1 1 9.5 3Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg>
+          </button>
         </header>
 
         <div class="search-box" id="searchBox" hidden>
@@ -60,14 +63,22 @@
           </article>
           <article>
             <span class="stat-icon green">$</span>
-            <small>收款金額</small>
+            <small>實收金額</small>
             <strong id="totalPayment">$0</strong>
           </article>
           <article>
             <span class="stat-icon red">欠</span>
-            <small>積欠金額</small>
+            <small>應收未收</small>
             <strong id="totalDebt">$0</strong>
           </article>
+        </section>
+
+        <section class="home-month-card">
+          <div>
+            <small>本月利潤</small>
+            <strong id="homeMonthProfit">$0</strong>
+          </div>
+          <button class="pill active" data-tab="stats" type="button">查看月度</button>
         </section>
 
         <div class="filter-row">
@@ -82,16 +93,21 @@
         <div class="customer-list" id="customerList"></div>
         <div class="empty-card" id="emptyState">
           <strong>還沒有客戶資料</strong>
-          <span>點右上角 + 新增第一位客戶。</span>
+          <span>點底部「新增」建立第一位客戶。</span>
         </div>
+      </section>
 
-        <nav class="tabbar">
-          <button class="tab active" data-tab="home" type="button"><span>⌂</span>首頁</button>
-          <button class="tab" data-tab="customers" type="button"><span>●</span>客戶</button>
-          <button class="tab plus" data-action="new" type="button"><span>＋</span>新增</button>
-          <button class="tab" data-tab="stats" type="button"><span>▥</span>統計</button>
-          <button class="tab" data-tab="settings" type="button"><span>⚙</span>設定</button>
-        </nav>
+      <section class="screen customers-screen" data-screen="customers">
+        <div class="status-bar" aria-hidden="true"></div>
+        <header class="page-header">
+          <h1>客戶分析</h1>
+          <button class="link-btn" data-tab="home" type="button">返回</button>
+        </header>
+        <section class="analytics-summary">
+          <article><small>客戶營業額</small><strong id="customerRevenueTotal">$0</strong></article>
+          <article><small>累計叫貨金額</small><strong id="orderAmountTotal">$0</strong></article>
+        </section>
+        <div class="analytics-list" id="customerAnalyticsList"></div>
       </section>
 
       <section class="screen detail-screen" data-screen="detail">
@@ -102,7 +118,7 @@
         </header>
 
         <section class="profile-card">
-          <div class="avatar large" id="detailAvatar">人</div>
+          <div class="avatar large" id="detailAvatar">客</div>
           <div>
             <h2 id="detailName">客戶姓名</h2>
             <p id="detailPhone">電話</p>
@@ -111,8 +127,8 @@
 
         <section class="amount-card">
           <div><small>總金額</small><strong id="detailTotal">$0</strong></div>
-          <div><small>積欠金額</small><strong class="danger" id="detailDebt">$0</strong></div>
-          <div><small>收款金額</small><strong class="success" id="detailPayment">$0</strong></div>
+          <div><small>應收未收</small><strong class="danger" id="detailDebt">$0</strong></div>
+          <div><small>實收金額</small><strong class="success" id="detailPayment">$0</strong></div>
         </section>
 
         <section class="info-card">
@@ -122,7 +138,7 @@
           </div>
           <div class="info-row">
             <span>▣</span>
-            <div><small>本次商品細項</small><p id="detailItems">未填寫</p></div>
+            <div><small>累計叫貨產品</small><div class="product-list" id="detailProducts"></div></div>
           </div>
           <div class="info-row">
             <span>▣</span>
@@ -135,7 +151,7 @@
         </section>
 
         <section class="records-card">
-          <header><h3>交易記錄</h3><button class="link-btn" type="button">查看全部 ›</button></header>
+          <header><h3>交易記錄</h3></header>
           <div id="recordRows"></div>
         </section>
       </section>
@@ -152,10 +168,13 @@
           <label><span>姓名</span><input id="name" name="name" required placeholder="請輸入姓名" /></label>
           <label><span>電話</span><input id="phone" name="phone" required placeholder="請輸入電話" /></label>
           <label><span>地址</span><input id="address" name="address" placeholder="請輸入地址" /></label>
-          <label><span>本次商品細項</span><textarea id="items" name="items" rows="3" placeholder="請輸入商品細項"></textarea></label>
+          <label>
+            <span>本次商品細項</span>
+            <textarea id="items" name="items" rows="4" placeholder="例：蜂蜜 500&#10;茶葉 1200&#10;也可只輸入品項，金額會平均分配"></textarea>
+          </label>
           <div class="money-grid">
-            <label><span>收款金額</span><input id="payment" name="payment" type="number" min="0" step="1" placeholder="0" /></label>
-            <label><span>積欠金額</span><input id="debt" name="debt" type="number" min="0" step="1" placeholder="0" /></label>
+            <label><span>實收金額</span><input id="payment" name="payment" type="number" min="0" step="1" placeholder="0" /></label>
+            <label><span>應收未收</span><input id="debt" name="debt" type="number" min="0" step="1" placeholder="0" /></label>
             <label><span>總金額</span><input id="total" name="total" type="number" min="0" step="1" placeholder="自動計算" /></label>
           </div>
           <label><span>下次送貨日期</span><input id="nextDelivery" name="nextDelivery" type="datetime-local" /></label>
@@ -163,6 +182,32 @@
           <button class="primary wide" type="submit" id="submitButton">儲存客戶</button>
           <button class="delete-wide" id="deleteFormButton" type="button" hidden>刪除客戶</button>
         </form>
+      </section>
+
+      <section class="screen stats-screen" data-screen="stats">
+        <div class="status-bar" aria-hidden="true"></div>
+        <header class="page-header">
+          <h1>月度</h1>
+          <button class="link-btn" data-tab="home" type="button">返回</button>
+        </header>
+        <label class="month-picker">
+          <span>月份</span>
+          <input id="monthInput" type="month" />
+        </label>
+        <section class="monthly-grid">
+          <article><small>本月應收帳款</small><strong id="monthReceivable">$0</strong></article>
+          <article><small>本月實收帳款</small><strong id="monthReceived">$0</strong></article>
+          <article><small>本月未收帳款</small><strong id="monthDebt">$0</strong></article>
+          <article><small>本月成本</small><input id="monthCost" type="number" min="0" step="1" placeholder="0" /></article>
+        </section>
+        <section class="profit-card">
+          <small>本月利潤</small>
+          <strong id="monthProfit">$0</strong>
+        </section>
+        <section class="records-card">
+          <header><h3>本月客戶</h3></header>
+          <div id="monthRows"></div>
+        </section>
       </section>
 
       <section class="screen settings-screen" data-screen="settings">
@@ -182,6 +227,14 @@
           <button class="secondary wide" id="themeButton" type="button">切換深色模式</button>
         </section>
       </section>
+
+      <nav class="tabbar">
+        <button class="tab active" data-tab="home" type="button"><span>⌂</span>首頁</button>
+        <button class="tab" data-tab="customers" type="button"><span>●</span>客戶</button>
+        <button class="tab plus" data-action="new" type="button"><span>＋</span>新增</button>
+        <button class="tab" data-tab="stats" type="button"><span>▥</span>月度</button>
+        <button class="tab" data-tab="settings" type="button"><span>⚙</span>設定</button>
+      </nav>
     </div>
   </body>
 </html>

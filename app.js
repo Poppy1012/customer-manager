@@ -3,10 +3,12 @@ const STORAGE_PREFIX = "customer_passbook:";
 const GUEST_KEY = `${STORAGE_PREFIX}guest`;
 const USER_KEY = `${STORAGE_PREFIX}activeUser`;
 const THEME_KEY = `${STORAGE_PREFIX}theme`;
+const COST_PREFIX = `${STORAGE_PREFIX}monthlyCost:`;
 
 const screens = [...document.querySelectorAll(".screen")];
 const startButton = document.querySelector("#startButton");
 const customerList = document.querySelector("#customerList");
+const customerAnalyticsList = document.querySelector("#customerAnalyticsList");
 const emptyState = document.querySelector("#emptyState");
 const searchInput = document.querySelector("#searchInput");
 const searchBox = document.querySelector("#searchBox");
@@ -16,6 +18,8 @@ const submitButton = document.querySelector("#submitButton");
 const deleteFormButton = document.querySelector("#deleteFormButton");
 const saveTopButton = document.querySelector("#saveTopButton");
 const importInput = document.querySelector("#importInput");
+const monthInput = document.querySelector("#monthInput");
+const monthCost = document.querySelector("#monthCost");
 const userChip = document.querySelector("#userChip");
 const userAvatar = document.querySelector("#userAvatar");
 const userName = document.querySelector("#userName");
@@ -40,6 +44,8 @@ function showScreen(name) {
   currentScreen = name;
   screens.forEach((screen) => screen.classList.toggle("active", screen.dataset.screen === name));
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
+  if (name === "customers") renderCustomerAnalytics();
+  if (name === "stats") renderMonthly();
 }
 
 function goBack() {
@@ -48,6 +54,10 @@ function goBack() {
 
 function storageKey() {
   return activeUser ? `${STORAGE_PREFIX}google:${activeUser.sub}` : GUEST_KEY;
+}
+
+function costKey(month) {
+  return `${COST_PREFIX}${activeUser ? activeUser.sub : "guest"}:${month}`;
 }
 
 function loadCustomers() {
@@ -66,6 +76,15 @@ function money(value) {
 
 function getTotal(customer) {
   return Number(customer.total || 0) || Number(customer.payment || 0) + Number(customer.debt || 0);
+}
+
+function recordDate(customer) {
+  return customer.updatedAt || customer.createdAt || new Date().toISOString();
+}
+
+function monthStamp(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function formatDate(value) {
@@ -106,16 +125,24 @@ function filteredCustomers() {
   });
 }
 
+function customersInMonth(month) {
+  return customers.filter((customer) => monthStamp(recordDate(customer)) === month);
+}
+
 function render() {
   renderStats();
   renderList();
+  renderCustomerAnalytics();
+  renderMonthly();
   if (selectedId) renderDetail(selectedId);
 }
 
 function renderStats() {
+  const received = customers.reduce((sum, item) => sum + Number(item.payment || 0), 0);
+  const debt = customers.reduce((sum, item) => sum + Number(item.debt || 0), 0);
   document.querySelector("#totalCount").textContent = customers.length;
-  document.querySelector("#totalPayment").textContent = money(customers.reduce((sum, item) => sum + Number(item.payment || 0), 0));
-  document.querySelector("#totalDebt").textContent = money(customers.reduce((sum, item) => sum + Number(item.debt || 0), 0));
+  document.querySelector("#totalPayment").textContent = money(received);
+  document.querySelector("#totalDebt").textContent = money(debt);
 }
 
 function renderList() {
@@ -128,7 +155,7 @@ function renderList() {
     card.className = "customer-card";
     card.type = "button";
     card.innerHTML = `
-      <div class="avatar ${avatarColors[index % avatarColors.length]}">${(customer.name || "客").slice(0, 1)}</div>
+      <div class="avatar ${avatarColors[index % avatarColors.length]}">${escapeHtml((customer.name || "客").slice(0, 1))}</div>
       <div class="customer-main">
         <strong>${escapeHtml(customer.name || "未命名客戶")}</strong>
         <span>${escapeHtml(customer.phone || "未填電話")}</span>
@@ -136,12 +163,107 @@ function renderList() {
       <div class="customer-money">
         <span>總金額</span>
         <strong>${money(getTotal(customer))}</strong>
-        ${Number(customer.debt || 0) > 0 ? `<b>積欠 ${money(customer.debt)}</b>` : `<i>積欠 $0</i>`}
+        ${Number(customer.debt || 0) > 0 ? `<b>未收 ${money(customer.debt)}</b>` : `<i>已收清</i>`}
       </div>
     `;
     card.addEventListener("click", () => openDetail(customer.id));
     customerList.appendChild(card);
   });
+}
+
+function renderCustomerAnalytics() {
+  const totalRevenue = customers.reduce((sum, customer) => sum + Number(customer.payment || 0), 0);
+  const totalOrders = customers.reduce((sum, customer) => sum + getTotal(customer), 0);
+  document.querySelector("#customerRevenueTotal").textContent = money(totalRevenue);
+  document.querySelector("#orderAmountTotal").textContent = money(totalOrders);
+  customerAnalyticsList.replaceChildren();
+
+  if (!customers.length) {
+    customerAnalyticsList.innerHTML = `<div class="empty-card" style="display:block"><strong>沒有客戶可分析</strong><span>新增客戶後會出現累計叫貨資料。</span></div>`;
+    return;
+  }
+
+  customers.forEach((customer) => {
+    const products = productRows(customer);
+    const card = document.createElement("article");
+    card.className = "analytics-card";
+    card.innerHTML = `
+      <h2>${escapeHtml(customer.name || "未命名客戶")}</h2>
+      <small>${escapeHtml(customer.phone || "未填電話")}</small>
+      <div class="analytics-metrics">
+        <div><small>產品項目</small><strong>${products.length}</strong></div>
+        <div><small>累計金額</small><strong>${money(getTotal(customer))}</strong></div>
+        <div><small>實際營業額</small><strong>${money(customer.payment)}</strong></div>
+      </div>
+      <div class="product-list">
+        ${products.map((product) => `
+          <div class="product-row">
+            <span>${escapeHtml(product.name)}</span>
+            <strong>${money(product.amount)}</strong>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    customerAnalyticsList.appendChild(card);
+  });
+}
+
+function renderMonthly() {
+  const month = monthInput.value || monthStamp();
+  monthInput.value = month;
+  const cost = Number(localStorage.getItem(costKey(month)) || 0);
+  monthCost.value = cost || "";
+  const rows = customersInMonth(month);
+  const receivable = rows.reduce((sum, item) => sum + getTotal(item), 0);
+  const received = rows.reduce((sum, item) => sum + Number(item.payment || 0), 0);
+  const debt = rows.reduce((sum, item) => sum + Number(item.debt || 0), 0);
+  const profit = received - cost;
+
+  document.querySelector("#monthReceivable").textContent = money(receivable);
+  document.querySelector("#monthReceived").textContent = money(received);
+  document.querySelector("#monthDebt").textContent = money(debt);
+  document.querySelector("#monthProfit").textContent = money(profit);
+  document.querySelector("#homeMonthProfit").textContent = money(profit);
+
+  const monthRows = document.querySelector("#monthRows");
+  monthRows.innerHTML = rows.length ? rows.map((customer) => `
+    <div class="record-row">
+      <span>${escapeHtml(customer.name || "未命名")}</span>
+      <span>實收 ${money(customer.payment)}</span>
+      <strong>${money(getTotal(customer))}</strong>
+    </div>
+  `).join("") : `<div class="record-row"><span>本月尚無資料</span><span></span><strong>$0</strong></div>`;
+}
+
+function productRows(customer) {
+  const lines = String(customer.items || "")
+    .split(/[\n,，、]+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const total = getTotal(customer);
+
+  if (!lines.length) return [{ name: "未填商品", amount: total }];
+
+  const parsed = lines.map((line) => {
+    const amountMatch = line.match(/(.+?)[\s:：xX*]*([0-9][0-9,]*)$/);
+    if (!amountMatch) return { name: line, amount: 0, explicit: false };
+    return {
+      name: amountMatch[1].trim() || line,
+      amount: Number(amountMatch[2].replace(/,/g, "")),
+      explicit: true
+    };
+  });
+
+  const explicitTotal = parsed.reduce((sum, item) => sum + (item.explicit ? item.amount : 0), 0);
+  const missing = parsed.filter((item) => !item.explicit);
+  const shared = missing.length ? Math.max(total - explicitTotal, 0) / missing.length : 0;
+  const merged = new Map();
+  parsed.forEach((item) => {
+    const name = item.name || "未填商品";
+    const amount = item.explicit ? item.amount : shared;
+    merged.set(name, (merged.get(name) || 0) + amount);
+  });
+  return [...merged.entries()].map(([name, amount]) => ({ name, amount }));
 }
 
 function openDetail(id) {
@@ -160,7 +282,6 @@ function renderDetail(id) {
   document.querySelector("#detailTotal").textContent = money(getTotal(customer));
   document.querySelector("#detailDebt").textContent = money(customer.debt);
   document.querySelector("#detailPayment").textContent = money(customer.payment);
-  document.querySelector("#detailItems").textContent = customer.items || "未填寫";
   document.querySelector("#detailNotes").textContent = customer.notes || "無";
 
   const address = document.querySelector("#detailAddress");
@@ -172,9 +293,15 @@ function renderDetail(id) {
   calendar.textContent = customer.nextDelivery ? `${formatDate(customer.nextDelivery)}　加入 Google 行事曆` : "未設定";
   calUrl ? (calendar.href = calUrl) : calendar.removeAttribute("href");
 
-  const recordRows = document.querySelector("#recordRows");
+  document.querySelector("#detailProducts").innerHTML = productRows(customer).map((product) => `
+    <div class="product-row">
+      <span>${escapeHtml(product.name)}</span>
+      <strong>${money(product.amount)}</strong>
+    </div>
+  `).join("");
+
   const records = buildRecords(customer);
-  recordRows.innerHTML = records.map((record) => `
+  document.querySelector("#recordRows").innerHTML = records.map((record) => `
     <div class="record-row">
       <span>${record.date}</span>
       <span>${record.type}</span>
@@ -184,13 +311,12 @@ function renderDetail(id) {
 }
 
 function buildRecords(customer) {
-  const updated = formatDate(customer.updatedAt || new Date().toISOString());
-  const created = formatDate(customer.createdAt || new Date().toISOString());
-  const records = [];
-  if (Number(customer.payment || 0) > 0) records.push({ date: updated, type: "收款", amount: money(customer.payment) });
-  if (Number(customer.debt || 0) > 0) records.push({ date: updated, type: "積欠", amount: money(customer.debt) });
-  if (!records.length) records.push({ date: created, type: "建立資料", amount: money(getTotal(customer)) });
-  return records;
+  const updated = formatDate(recordDate(customer));
+  return [
+    { date: updated, type: "應收", amount: money(getTotal(customer)) },
+    { date: updated, type: "實收", amount: money(customer.payment) },
+    { date: updated, type: "未收", amount: money(customer.debt) }
+  ];
 }
 
 function openForm(id = null) {
@@ -250,8 +376,8 @@ function exportExcel() {
     電話: customer.phone,
     地址: customer.address,
     本次商品細項: customer.items,
-    本次收款: customer.payment,
-    欠款金額: customer.debt,
+    實收金額: customer.payment,
+    應收未收: customer.debt,
     總金額: getTotal(customer),
     預計下次送貨時間: customer.nextDelivery,
     備註: customer.notes
@@ -275,8 +401,8 @@ async function importExcel(file) {
 }
 
 function normalizeImportRow(row) {
-  const payment = Number(row["本次收款"] || row["收款金額"] || row.payment || 0);
-  const debt = Number(row["欠款金額"] || row["積欠金額"] || row.debt || 0);
+  const payment = Number(row["實收金額"] || row["本次收款"] || row["收款金額"] || row.payment || 0);
+  const debt = Number(row["應收未收"] || row["欠款金額"] || row["積欠金額"] || row.debt || 0);
   const total = Number(row["總金額"] || row.total || 0) || payment + debt;
   return {
     id: crypto.randomUUID(),
@@ -369,6 +495,7 @@ function escapeHtml(value) {
 startButton.addEventListener("click", () => showScreen("home"));
 document.querySelectorAll("[data-action='new']").forEach((button) => button.addEventListener("click", () => openForm()));
 document.querySelectorAll("[data-action='back']").forEach((button) => button.addEventListener("click", goBack));
+document.querySelectorAll("[data-tab]").forEach((button) => button.addEventListener("click", () => showScreen(button.dataset.tab)));
 document.querySelector("#editDetailButton").addEventListener("click", () => selectedId && openForm(selectedId));
 document.querySelector("#searchToggle").addEventListener("click", () => searchBox.hidden = !searchBox.hidden);
 document.querySelectorAll("[data-filter]").forEach((button) => {
@@ -376,12 +503,6 @@ document.querySelectorAll("[data-filter]").forEach((button) => {
     currentFilter = button.dataset.filter;
     document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
     renderList();
-  });
-});
-document.querySelectorAll("[data-tab]").forEach((button) => {
-  button.addEventListener("click", () => {
-    if (button.dataset.tab === "settings") showScreen("settings");
-    else showScreen("home");
   });
 });
 searchInput.addEventListener("input", renderList);
@@ -398,6 +519,12 @@ importInput.addEventListener("change", (event) => {
   if (file) importExcel(file);
   event.target.value = "";
 });
+monthInput.addEventListener("change", renderMonthly);
+monthCost.addEventListener("input", () => {
+  const month = monthInput.value || monthStamp();
+  localStorage.setItem(costKey(month), String(Number(monthCost.value || 0)));
+  renderMonthly();
+});
 signOutButton.addEventListener("click", () => {
   activeUser = null;
   localStorage.removeItem(USER_KEY);
@@ -408,6 +535,13 @@ themeButton.addEventListener("click", () => {
   setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
 });
 
+monthInput.value = monthStamp();
 setTheme(localStorage.getItem(THEME_KEY) || "dark");
 loadCustomers();
 window.addEventListener("load", initGoogleLogin);
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
