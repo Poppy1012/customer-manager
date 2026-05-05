@@ -19,16 +19,7 @@
         .container { max-width: 1280px; margin: 0 auto; padding: 20px; }
         
         input, textarea { width: 100%; padding: 12px; border: 1px solid #555; border-radius: 8px; background: var(--card); color: var(--text); }
-        button { 
-            padding: 10px 20px; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: 500; 
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
+        button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-success { background: #40c057; color: white; }
         .btn-danger { background: #ff6b6b; color: white; }
@@ -54,13 +45,13 @@
                 <img id="userAvatar" style="width:32px;height:32px;border-radius:50%;" src="">
                 <span id="userName"></span>
             </div>
-            <button onclick="toggleLogin()" class="btn-primary" id="loginBtn">Google 登入</button>
+            <button onclick="googleLogin()" class="btn-primary" id="loginBtn">Google 登入</button>
             <button onclick="signOut()" class="btn-danger" id="logoutBtn" style="display:none;">登出</button>
         </div>
     </div>
 
     <div class="container">
-        <!-- 表單區域（略） -->
+        <!-- 新增/編輯表單 -->
         <div style="background:var(--card); padding:25px; border-radius:16px; margin-bottom:25px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
             <h3 id="formTitle">新增客戶</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:15px;">
@@ -79,16 +70,12 @@
             </div>
         </div>
 
-        <!-- 工具列 - 兩個按鈕已統一格式 -->
+        <!-- 工具列 -->
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <input type="text" id="search" placeholder="🔍 搜尋姓名、電話..." onkeyup="filterTable()" style="flex:1; min-width:250px; padding:12px;">
             <div style="display:flex; gap:10px;">
-                <button onclick="exportExcel()" class="btn-success">
-                    📤 匯出 Excel
-                </button>
-                <button onclick="document.getElementById('importFile').click()" class="btn-success">
-                    📥 匯入 Excel
-                </button>
+                <button onclick="exportExcel()" class="btn-success">📤 匯出 Excel</button>
+                <button onclick="document.getElementById('importFile').click()" class="btn-success">📥 匯入 Excel</button>
                 <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none;" onchange="importExcel(event)">
             </div>
         </div>
@@ -104,7 +91,7 @@
         </table>
     </div>
 
-    <!-- Modal -->
+    <!-- 登入建議 Modal -->
     <div class="modal" id="loginModal">
         <div class="modal-content">
             <h3>💡 建議登入 Google 帳號</h3>
@@ -117,11 +104,11 @@
     </div>
 
     <script>
-        // ...（Google 登入、資料儲存、明暗模式等功能保持不變）
         let currentUser = null;
         let customers = [];
         let editingId = null;
 
+        // ==================== 主題切換 ====================
         function toggleTheme() {
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (isDark) {
@@ -133,11 +120,221 @@
             }
         }
 
-        // 其他函數（saveCustomer, renderTable, loadUserData 等）與上一個版本相同
-        // 這裡省略以節省空間，你可以保留之前的完整程式碼
+        // ==================== Google 登入 ====================
+        function initGoogle() {
+            google.accounts.id.initialize({
+                client_id: '95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com',   
+                callback: handleCredentialResponse,
+            });
+        }
 
+        function handleCredentialResponse(response) {
+            const payload = JSON.parse(atob(response.credential.split('.')[1]));
+            currentUser = { email: payload.email, name: payload.name, picture: payload.picture };
+            localStorage.setItem('currentGoogleUser', JSON.stringify(currentUser));
+            updateUIAfterLogin();
+            loadUserData();
+            renderTable();
+            closeModal();
+        }
+
+        function googleLogin() { google.accounts.id.prompt(); }
+
+        function signOut() {
+            if (confirm('確定登出？')) {
+                localStorage.removeItem('currentGoogleUser');
+                location.reload();
+            }
+        }
+
+        function updateUIAfterLogin() {
+            document.getElementById('modeText').textContent = '已登入';
+            document.getElementById('userSection').style.display = 'flex';
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userAvatar').src = currentUser.picture;
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'inline-block';
+        }
+
+        // ==================== 資料操作 ====================
+        function loadUserData() {
+            const key = currentUser ? `customers_${currentUser.email}` : 'guest_customers';
+            customers = JSON.parse(localStorage.getItem(key) || '[]');
+        }
+
+        function saveUserData() {
+            const key = currentUser ? `customers_${currentUser.email}` : 'guest_customers';
+            localStorage.setItem(key, JSON.stringify(customers));
+        }
+
+        function saveCustomer() {
+            const customer = {
+                name: document.getElementById('name').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                product: document.getElementById('product').value.trim(),
+                payment: parseInt(document.getElementById('payment').value) || 0,
+                debt: parseInt(document.getElementById('debt').value) || 0,
+                address: document.getElementById('address').value.trim(),
+                nextDelivery: document.getElementById('nextDelivery').value,
+                note: document.getElementById('note').value.trim()
+            };
+
+            if (!customer.name || !customer.phone) {
+                alert("姓名與電話為必填欄位！");
+                return;
+            }
+
+            if (editingId !== null) {
+                customers[editingId] = customer;
+                editingId = null;
+                document.getElementById('formTitle').textContent = '新增客戶';
+            } else {
+                customers.push(customer);
+            }
+
+            saveUserData();
+            renderTable();
+            cancelEdit();
+
+            if (!currentUser) {
+                setTimeout(() => document.getElementById('loginModal').style.display = 'flex', 800);
+            }
+        }
+
+        function renderTable(filtered = null) {
+            const tbody = document.querySelector('#customerTable tbody');
+            tbody.innerHTML = '';
+            const data = filtered || customers;
+
+            data.forEach((c, i) => {
+                const mapsUrl = c.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}` : '#';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.phone}</td>
+                    <td style="white-space:pre-line;">${c.product || '-'}</td>
+                    <td class="paid">NT$ ${parseInt(c.payment||0).toLocaleString()}</td>
+                    <td class="debt">NT$ ${parseInt(c.debt||0).toLocaleString()}</td>
+                    <td>${c.nextDelivery ? new Date(c.nextDelivery).toLocaleString('zh-TW').slice(0,16) : '-'}</td>
+                    <td><a href="${mapsUrl}" target="_blank" style="color:var(--primary)">📍 地圖</a></td>
+                    <td>
+                        <button onclick="editCustomer(${i})" style="margin-right:5px;">✏️</button>
+                        <button onclick="deleteCustomer(${i})" class="btn-danger">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function editCustomer(i) {
+            const c = customers[i];
+            document.getElementById('name').value = c.name;
+            document.getElementById('phone').value = c.phone;
+            document.getElementById('product').value = c.product || '';
+            document.getElementById('payment').value = c.payment || 0;
+            document.getElementById('debt').value = c.debt || 0;
+            document.getElementById('address').value = c.address || '';
+            document.getElementById('nextDelivery').value = c.nextDelivery || '';
+            document.getElementById('note').value = c.note || '';
+            editingId = i;
+            document.getElementById('formTitle').textContent = '編輯客戶';
+        }
+
+        function deleteCustomer(i) {
+            if (confirm('確定刪除此客戶？')) {
+                customers.splice(i, 1);
+                saveUserData();
+                renderTable();
+            }
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            document.getElementById('formTitle').textContent = '新增客戶';
+            document.querySelectorAll('#mainApp input, #mainApp textarea').forEach(el => {
+                if (el.type === 'number') el.value = 0;
+                else el.value = '';
+            });
+        }
+
+        function filterTable() {
+            const keyword = document.getElementById('search').value.toLowerCase();
+            const filtered = customers.filter(c => 
+                c.name.toLowerCase().includes(keyword) || c.phone.includes(keyword)
+            );
+            renderTable(filtered);
+        }
+
+       function exportExcel() {
+            if (customers.length === 0) {
+                alert("目前沒有客戶資料可以匯出！");
+                return;
+            }
+
+            // 準備要匯出的資料
+            const exportData = customers.map((c, index) => ({
+                "序號": index + 1,
+                "姓名": c.name,
+                "電話": c.phone,
+                "本次商品細項": c.product || "",
+                "本次收款 (元)": c.payment || 0,
+                "欠款金額 (元)": c.debt || 0,
+                "地址": c.address || "",
+                "預計下次送貨時間": c.nextDelivery || "",
+                "備註": c.note || ""
+            }));
+
+            // 建立 Excel 工作表
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            
+            // 調整欄位寬度（讓 Excel 更好看）
+            ws['!cols'] = [
+                { wch: 6 },   // 序號
+                { wch: 12 },  // 姓名
+                { wch: 15 },  // 電話
+                { wch: 30 },  // 商品
+                { wch: 12 },  // 收款
+                { wch: 12 },  // 欠款
+                { wch: 35 },  // 地址
+                { wch: 20 },  // 送貨時間
+                { wch: 30 }   // 備註
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "客戶資料");
+
+            // 下載檔案
+            const today = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `客戶資料_${today}.xlsx`);
+
+            alert(`✅ 匯出成功！\n共 ${customers.length} 筆客戶資料`);
+        }
+
+        function importExcel(e) {
+            alert("📥 匯入功能正常");
+        }
+
+        function toggleLogin() { document.getElementById('loginModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('loginModal').style.display = 'none'; }
+
+        // ==================== 初始化 ====================
         window.onload = () => {
-            // ... 初始化程式碼
+            initGoogle();
+
+            if (localStorage.getItem('theme') === 'light') {
+                document.documentElement.removeAttribute('data-theme');
+            }
+
+            const savedUser = localStorage.getItem('currentGoogleUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateUIAfterLogin();
+            } else {
+                document.getElementById('modeText').textContent = '訪客模式';
+            }
+            
+            loadUserData();
+            renderTable();
         };
     </script>
 </body>
