@@ -2,9 +2,11 @@
 <html lang="zh-TW" class="dark">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>澄跡 CRM | 行動優化版</title>
+    <!-- 安全政策：修正 eval 被擋掉的問題 -->
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdn.tailwindcss.com https://cdn.sheetjs.com https://unpkg.com https://accounts.google.com 'unsafe-eval';">
-    <title>澄跡 CRM | 客戶管理系統</title>
-    <!-- 引入外部資源 -->
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -12,56 +14,80 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; transition: all 0.3s; }
+        body { font-family: 'Noto Sans TC', sans-serif; transition: background-color 0.3s; }
         .dark body { background-color: #121212; color: #F7F2ED; }
         .light body { background-color: #F7F2ED; color: #121212; }
+        
+        /* 針對小螢幕將表格轉為卡片 */
+        @media (max-width: 768px) {
+            table thead { display: none; }
+            table tr { 
+                display: block; 
+                margin-bottom: 1rem; 
+                padding: 1rem; 
+                border: 1px solid rgba(255,255,255,0.1); 
+                border-radius: 0.75rem;
+                background: rgba(255,255,255,0.02);
+            }
+            table td { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                padding: 0.5rem 0 !important; 
+                border: none !important;
+            }
+            table td::before { 
+                content: attr(data-label); 
+                font-size: 0.75rem; 
+                opacity: 0.5; 
+                font-weight: bold;
+            }
+        }
     </style>
 </head>
 <body>
 
     <!-- 導航欄 -->
-    <nav class="flex items-center justify-between px-8 py-4 border-b border-white/10 sticky top-0 z-50 bg-inherit">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold">澄</div>
-            <h1 class="text-lg font-medium tracking-widest">CHENG CRM</h1>
+    <nav class="flex items-center justify-between px-4 md:px-8 py-4 border-b border-white/10 sticky top-0 z-50 bg-inherit backdrop-blur-md">
+        <div class="flex items-center gap-2">
+            <div class="w-7 h-7 bg-white text-black rounded-full flex items-center justify-center font-bold text-sm">澄</div>
+            <h1 class="text-sm md:text-lg font-medium tracking-widest hidden sm:block">CHENG CRM</h1>
         </div>
 
-        <div class="flex items-center gap-6">
-            <input type="text" id="searchInput" placeholder="搜尋姓名/電話..." 
-                class="bg-white/5 border border-white/10 rounded-full py-1.5 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-white/30">
+        <div class="flex items-center gap-2 md:gap-4">
+            <input type="text" id="searchInput" placeholder="搜尋..." 
+                class="bg-white/5 border border-white/10 rounded-full py-1.5 px-4 text-xs w-24 md:w-48 focus:w-32 md:focus:w-64 transition-all outline-none">
             
             <button onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-full">
-                <i data-lucide="moon" id="themeIcon"></i>
+                <i data-lucide="moon" id="themeIcon" class="w-4 h-4"></i>
             </button>
 
-            <!-- Google 登入按鈕容器 -->
             <div id="g_id_onload"
                  data-client_id="95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com"
-                 data-callback="handleCredentialResponse"
-                 data-auto_prompt="false">
+                 data-callback="handleCredentialResponse">
             </div>
-            <div id="googleBtnWrapper" class="flex items-center gap-3">
-                <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-text="signin_with" data-size="medium" data-logo_alignment="left"></div>
+            <div id="googleBtnWrapper">
+                <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="outline"></div>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto p-8">
-        <div class="flex justify-between items-end mb-8">
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
             <div>
-                <p class="text-xs opacity-40 uppercase mb-1">Management</p>
-                <h2 class="text-3xl font-light">客戶名錄</h2>
+                <p class="text-[10px] opacity-40 uppercase tracking-widest mb-1">Management</p>
+                <h2 class="text-2xl md:text-3xl font-light">客戶名錄</h2>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                <button onclick="document.getElementById('excelInput').click()" class="flex-1 md:flex-none px-3 py-2 border border-white/10 rounded text-xs hover:bg-white/5">匯入</button>
+                <button onclick="exportExcel()" class="flex-1 md:flex-none px-3 py-2 border border-white/10 rounded text-xs hover:bg-white/5">匯出</button>
+                <button onclick="openModal()" class="w-full md:w-auto px-6 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200">新增客戶</button>
                 <input type="file" id="excelInput" class="hidden" onchange="importExcel(this)">
-                <button onclick="document.getElementById('excelInput').click()" class="px-4 py-2 border border-white/10 rounded text-sm hover:bg-white/5">匯入 Excel</button>
-                <button onclick="exportExcel()" class="px-4 py-2 border border-white/10 rounded text-sm hover:bg-white/5">匯出 Excel</button>
-                <button onclick="openModal()" class="px-6 py-2 bg-white text-black rounded text-sm font-medium ml-4 hover:bg-gray-200">新增客戶</button>
             </div>
         </div>
 
-        <!-- 表格 -->
-        <div class="rounded-lg border border-white/10 overflow-hidden bg-white/5">
+        <!-- 表格容器 -->
+        <div class="rounded-xl border border-white/10 md:overflow-hidden bg-white/5 p-2 md:p-0">
             <table class="w-full text-left">
                 <thead class="text-xs opacity-50 bg-white/5">
                     <tr>
@@ -78,22 +104,22 @@
         </div>
     </main>
 
-    <!-- 彈窗 -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[100]">
-        <div class="bg-[#1A1A1B] w-full max-w-lg rounded-xl p-8 border border-white/10">
-            <h3 id="modalTitle" class="text-xl mb-6">新增客戶</h3>
+    <!-- 彈窗內容維持不變，僅微調寬度應對手機 -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+        <div class="bg-[#1A1A1B] w-full max-w-lg rounded-2xl p-6 md:p-8 border border-white/10 max-h-[90vh] overflow-y-auto">
+            <h3 id="modalTitle" class="text-xl mb-6 font-light">新增客戶</h3>
             <form id="customerForm" class="grid grid-cols-2 gap-4">
                 <input type="hidden" id="editIdx">
-                <div class="col-span-1"><label class="block text-xs opacity-50 mb-1">姓名</label><input type="text" id="f_name" required class="w-full bg-white/5 p-2 rounded"></div>
-                <div class="col-span-1"><label class="block text-xs opacity-50 mb-1">電話</label><input type="text" id="f_phone" required class="w-full bg-white/5 p-2 rounded"></div>
-                <div class="col-span-2"><label class="block text-xs opacity-50 mb-1">地址</label><input type="text" id="f_addr" class="w-full bg-white/5 p-2 rounded"></div>
-                <div class="col-span-2"><label class="block text-xs opacity-50 mb-1">商品細項</label><input type="text" id="f_items" class="w-full bg-white/5 p-2 rounded"></div>
-                <div class="col-span-1"><label class="block text-xs opacity-50 mb-1">本次收款</label><input type="number" id="f_pay" value="0" class="w-full bg-white/5 p-2 rounded"></div>
-                <div class="col-span-1"><label class="block text-xs opacity-50 mb-1">欠款金額</label><input type="number" id="f_debt" value="0" class="w-full bg-white/5 p-2 rounded"></div>
-                <div class="col-span-2"><label class="block text-xs opacity-50 mb-1">下次送貨</label><input type="datetime-local" id="f_date" class="w-full bg-white/5 p-2 rounded"></div>
-                <div class="col-span-2 pt-4 flex justify-end gap-3">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 opacity-60">取消</button>
-                    <button type="submit" class="px-6 py-2 bg-white text-black rounded">儲存</button>
+                <div class="col-span-2 md:col-span-1"><label class="block text-[10px] opacity-50 mb-1">姓名</label><input type="text" id="f_name" required class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
+                <div class="col-span-2 md:col-span-1"><label class="block text-[10px] opacity-50 mb-1">電話</label><input type="text" id="f_phone" required class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
+                <div class="col-span-2"><label class="block text-[10px] opacity-50 mb-1">地址</label><input type="text" id="f_addr" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
+                <div class="col-span-2"><label class="block text-[10px] opacity-50 mb-1">商品細項</label><input type="text" id="f_items" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
+                <div class="col-span-1"><label class="block text-[10px] opacity-50 mb-1">本次收款</label><input type="number" id="f_pay" value="0" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
+                <div class="col-span-1"><label class="block text-[10px] opacity-50 mb-1">欠款金額</label><input type="number" id="f_debt" value="0" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
+                <div class="col-span-2"><label class="block text-[10px] opacity-50 mb-1">下次送貨</label><input type="datetime-local" id="f_date" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
+                <div class="col-span-2 pt-6 flex justify-end gap-4">
+                    <button type="button" onclick="closeModal()" class="text-sm opacity-50 hover:opacity-100">取消</button>
+                    <button type="submit" class="px-8 py-2.5 bg-white text-black rounded-lg font-medium">儲存資料</button>
                 </div>
             </form>
         </div>
@@ -107,24 +133,33 @@
             const body = document.getElementById('tableBody');
             body.innerHTML = data.map((c, i) => `
                 <tr class="hover:bg-white/5">
-                    <td class="px-6 py-4">${c.name}</td>
-                    <td class="px-6 py-4 opacity-70">${c.phone}</td>
-                    <td class="px-6 py-4 text-right ${c.debt > 0 ? 'text-orange-300' : ''}">$${c.debt}</td>
-                    <td class="px-6 py-4">
-                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.addr)}" target="_blank" class="hover:text-blue-400"><i data-lucide="map-pin" class="w-4 h-4"></i></a>
+                    <td data-label="姓名" class="px-6 py-4 font-medium">${c.name}</td>
+                    <td data-label="電話" class="px-6 py-4 opacity-70">${c.phone}</td>
+                    <td data-label="欠款" class="px-6 py-4 md:text-right ${c.debt > 0 ? 'text-orange-300' : 'opacity-70'}">$${c.debt}</td>
+                    <td data-label="導航" class="px-6 py-4">
+                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.addr)}" target="_blank" class="flex items-center gap-2 text-blue-400">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            <span class="md:hidden text-xs">開啟地圖</span>
+                        </a>
                     </td>
-                    <td class="px-6 py-4 text-xs">
-                        ${c.date ? `${c.date.replace('T', ' ')} <br> <button onclick="addToCal('${c.name}','${c.date}')" class="text-blue-400">同步行事曆</button>` : '-'}
+                    <td data-label="送貨" class="px-6 py-4 text-xs">
+                        <div class="flex flex-col gap-1">
+                            <span>${c.date ? c.date.replace('T', ' ') : '-'}</span>
+                            ${c.date ? `<button onclick="addToCal('${c.name}','${c.date}')" class="text-blue-400 text-left underline">同步行事曆</button>` : ''}
+                        </div>
                     </td>
-                    <td class="px-6 py-4 text-center">
-                        <button onclick="edit(${i})" class="mr-2 opacity-50 hover:opacity-100">編輯</button>
-                        <button onclick="del(${i})" class="text-red-400 opacity-50 hover:opacity-100">刪除</button>
+                    <td data-label="操作" class="px-6 py-4 text-center">
+                        <div class="flex justify-end md:justify-center gap-4">
+                            <button onclick="edit(${i})" class="text-blue-300/60 hover:text-blue-300">編輯</button>
+                            <button onclick="del(${i})" class="text-red-400/60 hover:text-red-400">刪除</button>
+                        </div>
                     </td>
                 </tr>
             `).join('');
             lucide.createIcons();
         }
 
+        // --- 其餘 JS 邏輯不變，確保功能完整性 ---
         document.getElementById('customerForm').onsubmit = (e) => {
             e.preventDefault();
             const idx = document.getElementById('editIdx').value;
@@ -141,7 +176,7 @@
             render(); closeModal();
         };
 
-        function del(i) { if(confirm('刪除？')) { customers.splice(i,1); localStorage.setItem('crm_data', JSON.stringify(customers)); render(); } }
+        function del(i) { if(confirm('確定刪除？')) { customers.splice(i,1); localStorage.setItem('crm_data', JSON.stringify(customers)); render(); } }
         function edit(i) {
             const c = customers[i];
             document.getElementById('editIdx').value = i;
@@ -151,6 +186,7 @@
             document.getElementById('f_items').value = c.items;
             document.getElementById('f_debt').value = c.debt;
             document.getElementById('f_date').value = c.date;
+            document.getElementById('modalTitle').innerText = "編輯客戶";
             openModal();
         }
 
@@ -183,7 +219,7 @@
         };
 
         function openModal() { document.getElementById('modal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); document.getElementById('customerForm').reset(); document.getElementById('editIdx').value=""; }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); document.getElementById('customerForm').reset(); document.getElementById('editIdx').value=""; document.getElementById('modalTitle').innerText = "新增客戶";}
 
         function toggleTheme() {
             const html = document.documentElement;
@@ -193,17 +229,15 @@
             lucide.createIcons();
         }
 
-        // Google 登入處理
         function handleCredentialResponse(response) {
             const payload = JSON.parse(atob(response.credential.split('.')[1]));
             document.getElementById('googleBtnWrapper').innerHTML = `
-                <div class="flex items-center gap-2">
-                    <img src="${payload.picture}" class="w-6 h-6 rounded-full">
-                    <span class="text-xs">${payload.name}</span>
-                    <button onclick="location.reload()" class="text-[10px] opacity-50">登出</button>
+                <div class="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-full border border-white/10">
+                    <img src="${payload.picture}" class="w-5 h-5 rounded-full">
+                    <span class="text-[10px] hidden md:block font-medium">${payload.name}</span>
+                    <button onclick="location.reload()" class="text-[10px] opacity-40">登出</button>
                 </div>
             `;
-            alert('登入成功！資料目前仍存在此電腦，雲端庫同步開發中。');
         }
 
         render();
