@@ -121,40 +121,60 @@
         }
 
         // ==================== Google 登入 ====================
-        function initGoogle() {
-            google.accounts.id.initialize({
-                client_id: '95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com',   
-                callback: handleCredentialResponse,
-            });
-        }
+       function initGoogle() {
+        google.accounts.id.initialize({
+            client_id: '95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com',   
+            callback: handleCredentialResponse,
+        });
+    }
 
-        function handleCredentialResponse(response) {
+    function handleCredentialResponse(response) {
+        try {
             const payload = JSON.parse(atob(response.credential.split('.')[1]));
-            currentUser = { email: payload.email, name: payload.name, picture: payload.picture };
+            
+            currentUser = {
+                email: payload.email,
+                name: payload.name,
+                picture: payload.picture
+            };
+
             localStorage.setItem('currentGoogleUser', JSON.stringify(currentUser));
+            
+            // 更新 UI
             updateUIAfterLogin();
+            
             loadUserData();
             renderTable();
             closeModal();
+            
+            console.log("✅ 登入成功:", currentUser.name);
+        } catch (e) {
+            alert("登入處理失敗，請再試一次");
         }
+    }
 
-        function googleLogin() { google.accounts.id.prompt(); }
-
-        function signOut() {
-            if (confirm('確定登出？')) {
-                localStorage.removeItem('currentGoogleUser');
-                location.reload();
-            }
-        }
-
-        function updateUIAfterLogin() {
-            document.getElementById('modeText').textContent = '已登入';
-            document.getElementById('userSection').style.display = 'flex';
-            document.getElementById('userName').textContent = currentUser.name;
+    function updateUIAfterLogin() {
+        document.getElementById('modeText').textContent = '已登入';
+        document.getElementById('userSection').style.display = 'flex';
+        document.getElementById('userName').textContent = currentUser.name;
+        if (currentUser.picture) {
             document.getElementById('userAvatar').src = currentUser.picture;
-            document.getElementById('loginBtn').style.display = 'none';
-            document.getElementById('logoutBtn').style.display = 'inline-block';
         }
+        document.getElementById('loginBtn').style.display = 'none';
+        document.getElementById('logoutBtn').style.display = 'inline-block';
+    }
+
+    function googleLogin() {
+        google.accounts.id.prompt();
+    }
+
+    function signOut() {
+        if (confirm('確定要登出嗎？')) {
+            localStorage.removeItem('currentGoogleUser');
+            location.reload();
+        }
+    }
+
 
         // ==================== 資料操作 ====================
         function loadUserData() {
