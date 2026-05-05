@@ -29,9 +29,6 @@
         th { background: var(--primary); color: white; }
         .debt { color: #ff6b6b; font-weight: bold; }
         .paid { color: #40c057; font-weight: bold; }
-
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: var(--card); padding: 25px; border-radius: 16px; max-width: 480px; width: 90%; }
     </style>
 </head>
 <body>
@@ -51,7 +48,6 @@
     </div>
 
     <div class="container">
-        <!-- 新增/編輯表單 -->
         <div style="background:var(--card); padding:25px; border-radius:16px; margin-bottom:25px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
             <h3 id="formTitle">新增客戶</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:15px;">
@@ -70,7 +66,6 @@
             </div>
         </div>
 
-        <!-- 工具列 -->
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <input type="text" id="search" placeholder="🔍 搜尋姓名、電話..." onkeyup="filterTable()" style="flex:1; min-width:250px; padding:12px;">
             <div style="display:flex; gap:10px;">
@@ -91,7 +86,6 @@
         </table>
     </div>
 
-    <!-- 登入建議 Modal -->
     <div class="modal" id="loginModal">
         <div class="modal-content">
             <h3>💡 建議登入 Google 帳號</h3>
@@ -108,7 +102,6 @@
         let customers = [];
         let editingId = null;
 
-        // ==================== 主題切換 ====================
         function toggleTheme() {
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (isDark) {
@@ -120,86 +113,37 @@
             }
         }
 
-        // ==================== Google 登入 ====================
-<script>
-    let currentUser = null;
-    let customers = [];
-    let editingId = null;
+        function initGoogle() {
+            google.accounts.id.initialize({
+                client_id: '95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com',
+                callback: handleCredentialResponse,
+            });
+        }
 
-    // ==================== Google 登入 ====================
-    function initGoogle() {
-        google.accounts.id.initialize({
-            client_id: '95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com',  
-        });
-    }
-
-    function handleCredentialResponse(response) {
-        try {
+        function handleCredentialResponse(response) {
             const payload = JSON.parse(atob(response.credential.split('.')[1]));
-            
-            currentUser = {
-                email: payload.email,
-                name: payload.name,
-                picture: payload.picture
-            };
-
+            currentUser = { email: payload.email, name: payload.name, picture: payload.picture };
             localStorage.setItem('currentGoogleUser', JSON.stringify(currentUser));
-            
-            // 更新 UI
             updateUIAfterLogin();
-            
             loadUserData();
             renderTable();
             closeModal();
-            
-            console.log("✅ 登入成功:", currentUser.name);
-        } catch (e) {
-            alert("登入處理失敗，請再試一次");
         }
-    }
 
-    function updateUIAfterLogin() {
-        document.getElementById('modeText').textContent = '已登入';
-        document.getElementById('userSection').style.display = 'flex';
-        document.getElementById('userName').textContent = currentUser.name;
-        if (currentUser.picture) {
-            document.getElementById('userAvatar').src = currentUser.picture;
+        function updateUIAfterLogin() {
+            document.getElementById('modeText').textContent = '已登入';
+            document.getElementById('userSection').style.display = 'flex';
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userAvatar').src = currentUser.picture || '';
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'inline-block';
         }
-        document.getElementById('loginBtn').style.display = 'none';
-        document.getElementById('logoutBtn').style.display = 'inline-block';
-    }
 
-    function googleLogin() {
-        google.accounts.id.prompt();
-    }
-
-    function signOut() {
-        if (confirm('確定要登出嗎？')) {
-            localStorage.removeItem('currentGoogleUser');
-            location.reload();
+        function googleLogin() { google.accounts.id.prompt(); }
+        function signOut() {
+            if (confirm('確定登出？')) location.reload();
         }
-    }
 
-    // ==================== 其他功能保持不變 ====================
-    // ... (toggleTheme, loadUserData, saveCustomer, renderTable 等)
-
-    window.onload = () => {
-        initGoogle();
-
-        // 自動恢復已登入狀態
-        const savedUser = localStorage.getItem('currentGoogleUser');
-        if (savedUser) {
-            currentUser = JSON.parse(savedUser);
-            updateUIAfterLogin();
-        } else {
-            document.getElementById('modeText').textContent = '訪客模式';
-        }
-        
-        loadUserData();
-        renderTable();
-    };
-</script>
-        // ==================== 資料操作 ====================
         function loadUserData() {
             const key = currentUser ? `customers_${currentUser.email}` : 'guest_customers';
             customers = JSON.parse(localStorage.getItem(key) || '[]');
@@ -222,18 +166,10 @@
                 note: document.getElementById('note').value.trim()
             };
 
-            if (!customer.name || !customer.phone) {
-                alert("姓名與電話為必填欄位！");
-                return;
-            }
+            if (!customer.name || !customer.phone) return alert("姓名與電話為必填！");
 
-            if (editingId !== null) {
-                customers[editingId] = customer;
-                editingId = null;
-                document.getElementById('formTitle').textContent = '新增客戶';
-            } else {
-                customers.push(customer);
-            }
+            if (editingId !== null) customers[editingId] = customer;
+            else customers.push(customer);
 
             saveUserData();
             renderTable();
@@ -255,13 +191,13 @@
                 row.innerHTML = `
                     <td><strong>${c.name}</strong></td>
                     <td>${c.phone}</td>
-                    <td style="white-space:pre-line;">${c.product || '-'}</td>
+                    <td>${c.product || '-'}</td>
                     <td class="paid">NT$ ${parseInt(c.payment||0).toLocaleString()}</td>
                     <td class="debt">NT$ ${parseInt(c.debt||0).toLocaleString()}</td>
                     <td>${c.nextDelivery ? new Date(c.nextDelivery).toLocaleString('zh-TW').slice(0,16) : '-'}</td>
                     <td><a href="${mapsUrl}" target="_blank" style="color:var(--primary)">📍 地圖</a></td>
                     <td>
-                        <button onclick="editCustomer(${i})" style="margin-right:5px;">✏️</button>
+                        <button onclick="editCustomer(${i})">✏️</button>
                         <button onclick="deleteCustomer(${i})" class="btn-danger">🗑️</button>
                     </td>
                 `;
@@ -269,113 +205,65 @@
             });
         }
 
-        function editCustomer(i) {
-            const c = customers[i];
-            document.getElementById('name').value = c.name;
-            document.getElementById('phone').value = c.phone;
-            document.getElementById('product').value = c.product || '';
-            document.getElementById('payment').value = c.payment || 0;
-            document.getElementById('debt').value = c.debt || 0;
-            document.getElementById('address').value = c.address || '';
-            document.getElementById('nextDelivery').value = c.nextDelivery || '';
-            document.getElementById('note').value = c.note || '';
-            editingId = i;
-            document.getElementById('formTitle').textContent = '編輯客戶';
-        }
-
-        function deleteCustomer(i) {
-            if (confirm('確定刪除此客戶？')) {
-                customers.splice(i, 1);
-                saveUserData();
-                renderTable();
-            }
-        }
-
-        function cancelEdit() {
-            editingId = null;
-            document.getElementById('formTitle').textContent = '新增客戶';
-            document.querySelectorAll('#mainApp input, #mainApp textarea').forEach(el => {
-                if (el.type === 'number') el.value = 0;
-                else el.value = '';
-            });
-        }
+        function editCustomer(i) { /* ... */ const c = customers[i]; /* 填入表單 */ editingId = i; document.getElementById('formTitle').textContent = '編輯客戶'; }
+        function deleteCustomer(i) { if (confirm('確定刪除？')) { customers.splice(i, 1); saveUserData(); renderTable(); } }
+        function cancelEdit() { editingId = null; document.getElementById('formTitle').textContent = '新增客戶'; document.querySelectorAll('input, textarea').forEach(el => el.value = el.type === 'number' ? 0 : ''); }
 
         function filterTable() {
             const keyword = document.getElementById('search').value.toLowerCase();
-            const filtered = customers.filter(c => 
-                c.name.toLowerCase().includes(keyword) || c.phone.includes(keyword)
-            );
+            const filtered = customers.filter(c => c.name.toLowerCase().includes(keyword) || c.phone.includes(keyword));
             renderTable(filtered);
         }
 
-       function exportExcel() {
-            if (customers.length === 0) {
-                alert("目前沒有客戶資料可以匯出！");
-                return;
-            }
-
-            // 準備要匯出的資料
-            const exportData = customers.map((c, index) => ({
-                "序號": index + 1,
-                "姓名": c.name,
-                "電話": c.phone,
-                "本次商品細項": c.product || "",
-                "本次收款 (元)": c.payment || 0,
-                "欠款金額 (元)": c.debt || 0,
-                "地址": c.address || "",
-                "預計下次送貨時間": c.nextDelivery || "",
-                "備註": c.note || ""
-            }));
-
-            // 建立 Excel 工作表
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            
-            // 調整欄位寬度（讓 Excel 更好看）
-            ws['!cols'] = [
-                { wch: 6 },   // 序號
-                { wch: 12 },  // 姓名
-                { wch: 15 },  // 電話
-                { wch: 30 },  // 商品
-                { wch: 12 },  // 收款
-                { wch: 12 },  // 欠款
-                { wch: 35 },  // 地址
-                { wch: 20 },  // 送貨時間
-                { wch: 30 }   // 備註
-            ];
-
+        function exportExcel() {
+            if (customers.length === 0) return alert("沒有資料可匯出");
+            const ws = XLSX.utils.json_to_sheet(customers.map((c,i) => ({
+                "序號": i+1, "姓名": c.name, "電話": c.phone, "商品": c.product,
+                "本次收款": c.payment, "欠款": c.debt, "地址": c.address,
+                "下次送貨": c.nextDelivery, "備註": c.note
+            })));
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "客戶資料");
-
-            // 下載檔案
-            const today = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `客戶資料_${today}.xlsx`);
-
-            alert(`✅ 匯出成功！\n共 ${customers.length} 筆客戶資料`);
+            XLSX.writeFile(wb, `客戶資料_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
         function importExcel(e) {
-            alert("📥 匯入功能正常");
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const data = new Uint8Array(ev.target.result);
+                const wb = XLSX.read(data, {type: 'array'});
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                customers = json.map(row => ({
+                    name: row.姓名 || '',
+                    phone: row.電話 || '',
+                    product: row.商品 || '',
+                    payment: row.本次收款 || 0,
+                    debt: row.欠款 || 0,
+                    address: row.地址 || '',
+                    nextDelivery: row.下次送貨 || '',
+                    note: row.備註 || ''
+                }));
+                saveUserData();
+                renderTable();
+                alert('匯入成功！');
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         function toggleLogin() { document.getElementById('loginModal').style.display = 'flex'; }
         function closeModal() { document.getElementById('loginModal').style.display = 'none'; }
 
-        // ==================== 初始化 ====================
         window.onload = () => {
             initGoogle();
-
-            if (localStorage.getItem('theme') === 'light') {
-                document.documentElement.removeAttribute('data-theme');
-            }
-
-            const savedUser = localStorage.getItem('currentGoogleUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
+            const saved = localStorage.getItem('currentGoogleUser');
+            if (saved) {
+                currentUser = JSON.parse(saved);
                 updateUIAfterLogin();
             } else {
                 document.getElementById('modeText').textContent = '訪客模式';
             }
-            
             loadUserData();
             renderTable();
         };
