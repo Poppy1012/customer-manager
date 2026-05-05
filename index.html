@@ -121,10 +121,15 @@
         }
 
         // ==================== Google 登入 ====================
-       function initGoogle() {
+<script>
+    let currentUser = null;
+    let customers = [];
+    let editingId = null;
+
+    // ==================== Google 登入 ====================
+    function initGoogle() {
         google.accounts.id.initialize({
-            client_id: '95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com',   
-            callback: handleCredentialResponse,
+            client_id: '95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com',  
         });
     }
 
@@ -175,7 +180,25 @@
         }
     }
 
+    // ==================== 其他功能保持不變 ====================
+    // ... (toggleTheme, loadUserData, saveCustomer, renderTable 等)
 
+    window.onload = () => {
+        initGoogle();
+
+        // 自動恢復已登入狀態
+        const savedUser = localStorage.getItem('currentGoogleUser');
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            updateUIAfterLogin();
+        } else {
+            document.getElementById('modeText').textContent = '訪客模式';
+        }
+        
+        loadUserData();
+        renderTable();
+    };
+</script>
         // ==================== 資料操作 ====================
         function loadUserData() {
             const key = currentUser ? `customers_${currentUser.email}` : 'guest_customers';
