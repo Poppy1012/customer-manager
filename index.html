@@ -1,246 +1,187 @@
-<!DOCTYPE html>
-<html lang="zh-TW" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>澄跡 CRM | 行動優化版</title>
-    <!-- 安全政策：修正 eval 被擋掉的問題 -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdn.tailwindcss.com https://cdn.sheetjs.com https://unpkg.com https://accounts.google.com 'unsafe-eval';">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>客戶存摺</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; transition: background-color 0.3s; }
-        .dark body { background-color: #121212; color: #F7F2ED; }
-        .light body { background-color: #F7F2ED; color: #121212; }
-        
-        /* 針對小螢幕將表格轉為卡片 */
-        @media (max-width: 768px) {
-            table thead { display: none; }
-            table tr { 
-                display: block; 
-                margin-bottom: 1rem; 
-                padding: 1rem; 
-                border: 1px solid rgba(255,255,255,0.1); 
-                border-radius: 0.75rem;
-                background: rgba(255,255,255,0.02);
-            }
-            table td { 
-                display: flex; 
-                justify-content: space-between; 
-                align-items: center; 
-                padding: 0.5rem 0 !important; 
-                border: none !important;
-            }
-            table td::before { 
-                content: attr(data-label); 
-                font-size: 0.75rem; 
-                opacity: 0.5; 
-                font-weight: bold;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- 導航欄 -->
-    <nav class="flex items-center justify-between px-4 md:px-8 py-4 border-b border-white/10 sticky top-0 z-50 bg-inherit backdrop-blur-md">
-        <div class="flex items-center gap-2">
-            <div class="w-7 h-7 bg-white text-black rounded-full flex items-center justify-center font-bold text-sm">澄</div>
-            <h1 class="text-sm md:text-lg font-medium tracking-widest hidden sm:block">CHENG CRM</h1>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="phone-shell">
+      <section class="screen splash-screen active" data-screen="splash">
+        <div class="status-bar" aria-hidden="true"></div>
+        <div class="splash-art" aria-hidden="true">
+          <div class="blob"></div>
+          <div class="book">
+            <div class="book-page"></div>
+            <div class="book-face">
+              <span></span><i></i><i></i><i></i>
+            </div>
+          </div>
         </div>
+        <div class="splash-copy">
+          <h1>客戶存摺</h1>
+          <p>客戶管理・收款追蹤・智慧掌握</p>
+        </div>
+        <div class="dots"><b></b><b></b><b></b></div>
+        <button class="primary wide" id="startButton" type="button">開始使用</button>
+      </section>
 
-        <div class="flex items-center gap-2 md:gap-4">
-            <input type="text" id="searchInput" placeholder="搜尋..." 
-                class="bg-white/5 border border-white/10 rounded-full py-1.5 px-4 text-xs w-24 md:w-48 focus:w-32 md:focus:w-64 transition-all outline-none">
-            
-            <button onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-full">
-                <i data-lucide="moon" id="themeIcon" class="w-4 h-4"></i>
+      <section class="screen app-screen" data-screen="home">
+        <div class="status-bar" aria-hidden="true"></div>
+        <header class="app-header">
+          <div>
+            <p id="storageLabel">訪客模式，本機儲存</p>
+            <h1>客戶存摺</h1>
+          </div>
+          <div class="header-actions">
+            <button class="icon-btn" id="searchToggle" type="button" aria-label="搜尋">
+              <svg viewBox="0 0 24 24"><path d="M9.5 3a6.5 6.5 0 0 1 5.15 10.46l4.45 4.44-1.4 1.42-4.46-4.45A6.5 6.5 0 1 1 9.5 3Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg>
             </button>
+            <button class="add-btn" data-action="new" type="button" aria-label="新增客戶">+</button>
+          </div>
+        </header>
 
-            <div id="g_id_onload"
-                 data-client_id="95788600787-f8uq7eg5rs5vb7i9r1i7m88npkdb0upd.apps.googleusercontent.com"
-                 data-callback="handleCredentialResponse">
-            </div>
-            <div id="googleBtnWrapper">
-                <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="outline"></div>
-            </div>
-        </div>
-    </nav>
-
-    <main class="max-w-7xl mx-auto p-4 md:p-8">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
-            <div>
-                <p class="text-[10px] opacity-40 uppercase tracking-widest mb-1">Management</p>
-                <h2 class="text-2xl md:text-3xl font-light">客戶名錄</h2>
-            </div>
-            <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                <button onclick="document.getElementById('excelInput').click()" class="flex-1 md:flex-none px-3 py-2 border border-white/10 rounded text-xs hover:bg-white/5">匯入</button>
-                <button onclick="exportExcel()" class="flex-1 md:flex-none px-3 py-2 border border-white/10 rounded text-xs hover:bg-white/5">匯出</button>
-                <button onclick="openModal()" class="w-full md:w-auto px-6 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200">新增客戶</button>
-                <input type="file" id="excelInput" class="hidden" onchange="importExcel(this)">
-            </div>
+        <div class="search-box" id="searchBox" hidden>
+          <input id="searchInput" placeholder="搜尋姓名、電話、地址、商品、備註" />
         </div>
 
-        <!-- 表格容器 -->
-        <div class="rounded-xl border border-white/10 md:overflow-hidden bg-white/5 p-2 md:p-0">
-            <table class="w-full text-left">
-                <thead class="text-xs opacity-50 bg-white/5">
-                    <tr>
-                        <th class="px-6 py-4">姓名</th>
-                        <th class="px-6 py-4">電話</th>
-                        <th class="px-6 py-4 text-right">欠款</th>
-                        <th class="px-6 py-4">地址</th>
-                        <th class="px-6 py-4">預計送貨</th>
-                        <th class="px-6 py-4 text-center">操作</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody" class="text-sm divide-y divide-white/5"></tbody>
-            </table>
-        </div>
-    </main>
+        <section class="stats-grid">
+          <article>
+            <span class="stat-icon blue">人</span>
+            <small>客戶總數</small>
+            <strong id="totalCount">0</strong>
+          </article>
+          <article>
+            <span class="stat-icon green">$</span>
+            <small>收款金額</small>
+            <strong id="totalPayment">$0</strong>
+          </article>
+          <article>
+            <span class="stat-icon red">欠</span>
+            <small>積欠金額</small>
+            <strong id="totalDebt">$0</strong>
+          </article>
+        </section>
 
-    <!-- 彈窗內容維持不變，僅微調寬度應對手機 -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-        <div class="bg-[#1A1A1B] w-full max-w-lg rounded-2xl p-6 md:p-8 border border-white/10 max-h-[90vh] overflow-y-auto">
-            <h3 id="modalTitle" class="text-xl mb-6 font-light">新增客戶</h3>
-            <form id="customerForm" class="grid grid-cols-2 gap-4">
-                <input type="hidden" id="editIdx">
-                <div class="col-span-2 md:col-span-1"><label class="block text-[10px] opacity-50 mb-1">姓名</label><input type="text" id="f_name" required class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
-                <div class="col-span-2 md:col-span-1"><label class="block text-[10px] opacity-50 mb-1">電話</label><input type="text" id="f_phone" required class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
-                <div class="col-span-2"><label class="block text-[10px] opacity-50 mb-1">地址</label><input type="text" id="f_addr" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
-                <div class="col-span-2"><label class="block text-[10px] opacity-50 mb-1">商品細項</label><input type="text" id="f_items" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
-                <div class="col-span-1"><label class="block text-[10px] opacity-50 mb-1">本次收款</label><input type="number" id="f_pay" value="0" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
-                <div class="col-span-1"><label class="block text-[10px] opacity-50 mb-1">欠款金額</label><input type="number" id="f_debt" value="0" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
-                <div class="col-span-2"><label class="block text-[10px] opacity-50 mb-1">下次送貨</label><input type="datetime-local" id="f_date" class="w-full bg-white/5 p-2.5 rounded-lg outline-none border border-white/5 focus:border-white/20"></div>
-                <div class="col-span-2 pt-6 flex justify-end gap-4">
-                    <button type="button" onclick="closeModal()" class="text-sm opacity-50 hover:opacity-100">取消</button>
-                    <button type="submit" class="px-8 py-2.5 bg-white text-black rounded-lg font-medium">儲存資料</button>
-                </div>
-            </form>
+        <div class="filter-row">
+          <button class="pill active" data-filter="all" type="button">全部客戶</button>
+          <button class="pill" data-filter="debt" type="button">有欠款</button>
+          <button class="pill" data-filter="delivery" type="button">待送貨</button>
+          <button class="pill soft" id="importButton" type="button">匯入</button>
+          <button class="pill soft" id="exportButton" type="button">匯出</button>
+          <input id="importInput" type="file" accept=".xlsx,.xls" hidden />
         </div>
+
+        <div class="customer-list" id="customerList"></div>
+        <div class="empty-card" id="emptyState">
+          <strong>還沒有客戶資料</strong>
+          <span>點右上角 + 新增第一位客戶。</span>
+        </div>
+
+        <nav class="tabbar">
+          <button class="tab active" data-tab="home" type="button"><span>⌂</span>首頁</button>
+          <button class="tab" data-tab="customers" type="button"><span>●</span>客戶</button>
+          <button class="tab plus" data-action="new" type="button"><span>＋</span>新增</button>
+          <button class="tab" data-tab="stats" type="button"><span>▥</span>統計</button>
+          <button class="tab" data-tab="settings" type="button"><span>⚙</span>設定</button>
+        </nav>
+      </section>
+
+      <section class="screen detail-screen" data-screen="detail">
+        <div class="status-bar" aria-hidden="true"></div>
+        <header class="page-header">
+          <button class="plain-icon" data-action="back" type="button">‹</button>
+          <button class="link-btn" id="editDetailButton" type="button">編輯</button>
+        </header>
+
+        <section class="profile-card">
+          <div class="avatar large" id="detailAvatar">人</div>
+          <div>
+            <h2 id="detailName">客戶姓名</h2>
+            <p id="detailPhone">電話</p>
+          </div>
+        </section>
+
+        <section class="amount-card">
+          <div><small>總金額</small><strong id="detailTotal">$0</strong></div>
+          <div><small>積欠金額</small><strong class="danger" id="detailDebt">$0</strong></div>
+          <div><small>收款金額</small><strong class="success" id="detailPayment">$0</strong></div>
+        </section>
+
+        <section class="info-card">
+          <div class="info-row">
+            <span>⌖</span>
+            <div><small>地址</small><a id="detailAddress" target="_blank" rel="noreferrer">未填寫</a></div>
+          </div>
+          <div class="info-row">
+            <span>▣</span>
+            <div><small>本次商品細項</small><p id="detailItems">未填寫</p></div>
+          </div>
+          <div class="info-row">
+            <span>▣</span>
+            <div><small>下次送貨日期</small><a id="detailCalendar" target="_blank" rel="noreferrer">未設定</a></div>
+          </div>
+          <div class="info-row">
+            <span>✎</span>
+            <div><small>備註</small><p id="detailNotes">無</p></div>
+          </div>
+        </section>
+
+        <section class="records-card">
+          <header><h3>交易記錄</h3><button class="link-btn" type="button">查看全部 ›</button></header>
+          <div id="recordRows"></div>
+        </section>
+      </section>
+
+      <section class="screen form-screen" data-screen="form">
+        <div class="status-bar" aria-hidden="true"></div>
+        <header class="page-header">
+          <button class="plain-icon" data-action="back" type="button">‹</button>
+          <h1 id="formTitle">新增客戶</h1>
+          <button class="link-btn" id="saveTopButton" type="button">儲存</button>
+        </header>
+
+        <form id="customerForm" autocomplete="off">
+          <label><span>姓名</span><input id="name" name="name" required placeholder="請輸入姓名" /></label>
+          <label><span>電話</span><input id="phone" name="phone" required placeholder="請輸入電話" /></label>
+          <label><span>地址</span><input id="address" name="address" placeholder="請輸入地址" /></label>
+          <label><span>本次商品細項</span><textarea id="items" name="items" rows="3" placeholder="請輸入商品細項"></textarea></label>
+          <div class="money-grid">
+            <label><span>收款金額</span><input id="payment" name="payment" type="number" min="0" step="1" placeholder="0" /></label>
+            <label><span>積欠金額</span><input id="debt" name="debt" type="number" min="0" step="1" placeholder="0" /></label>
+            <label><span>總金額</span><input id="total" name="total" type="number" min="0" step="1" placeholder="自動計算" /></label>
+          </div>
+          <label><span>下次送貨日期</span><input id="nextDelivery" name="nextDelivery" type="datetime-local" /></label>
+          <label><span>備註</span><textarea id="notes" name="notes" rows="5" placeholder="請輸入備註（選填）"></textarea></label>
+          <button class="primary wide" type="submit" id="submitButton">儲存客戶</button>
+          <button class="delete-wide" id="deleteFormButton" type="button" hidden>刪除客戶</button>
+        </form>
+      </section>
+
+      <section class="screen settings-screen" data-screen="settings">
+        <div class="status-bar" aria-hidden="true"></div>
+        <header class="page-header">
+          <button class="plain-icon" data-action="back" type="button">‹</button>
+          <h1>設定</h1>
+          <span></span>
+        </header>
+        <section class="settings-card">
+          <div class="user-card" id="userChip" hidden>
+            <img id="userAvatar" alt="" />
+            <div><strong id="userName"></strong><small>已登入 Google</small></div>
+          </div>
+          <div id="googleButton"></div>
+          <button class="secondary wide" id="signOutButton" type="button" hidden>登出 Google</button>
+          <button class="secondary wide" id="themeButton" type="button">切換深色模式</button>
+        </section>
+      </section>
     </div>
-
-    <script>
-        let customers = JSON.parse(localStorage.getItem('crm_data')) || [];
-        lucide.createIcons();
-
-        function render(data = customers) {
-            const body = document.getElementById('tableBody');
-            body.innerHTML = data.map((c, i) => `
-                <tr class="hover:bg-white/5">
-                    <td data-label="姓名" class="px-6 py-4 font-medium">${c.name}</td>
-                    <td data-label="電話" class="px-6 py-4 opacity-70">${c.phone}</td>
-                    <td data-label="欠款" class="px-6 py-4 md:text-right ${c.debt > 0 ? 'text-orange-300' : 'opacity-70'}">$${c.debt}</td>
-                    <td data-label="導航" class="px-6 py-4">
-                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.addr)}" target="_blank" class="flex items-center gap-2 text-blue-400">
-                            <i data-lucide="map-pin" class="w-4 h-4"></i>
-                            <span class="md:hidden text-xs">開啟地圖</span>
-                        </a>
-                    </td>
-                    <td data-label="送貨" class="px-6 py-4 text-xs">
-                        <div class="flex flex-col gap-1">
-                            <span>${c.date ? c.date.replace('T', ' ') : '-'}</span>
-                            ${c.date ? `<button onclick="addToCal('${c.name}','${c.date}')" class="text-blue-400 text-left underline">同步行事曆</button>` : ''}
-                        </div>
-                    </td>
-                    <td data-label="操作" class="px-6 py-4 text-center">
-                        <div class="flex justify-end md:justify-center gap-4">
-                            <button onclick="edit(${i})" class="text-blue-300/60 hover:text-blue-300">編輯</button>
-                            <button onclick="del(${i})" class="text-red-400/60 hover:text-red-400">刪除</button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        // --- 其餘 JS 邏輯不變，確保功能完整性 ---
-        document.getElementById('customerForm').onsubmit = (e) => {
-            e.preventDefault();
-            const idx = document.getElementById('editIdx').value;
-            const obj = {
-                name: document.getElementById('f_name').value,
-                phone: document.getElementById('f_phone').value,
-                addr: document.getElementById('f_addr').value,
-                items: document.getElementById('f_items').value,
-                debt: document.getElementById('f_debt').value,
-                date: document.getElementById('f_date').value
-            };
-            if(idx === "") customers.push(obj); else customers[idx] = obj;
-            localStorage.setItem('crm_data', JSON.stringify(customers));
-            render(); closeModal();
-        };
-
-        function del(i) { if(confirm('確定刪除？')) { customers.splice(i,1); localStorage.setItem('crm_data', JSON.stringify(customers)); render(); } }
-        function edit(i) {
-            const c = customers[i];
-            document.getElementById('editIdx').value = i;
-            document.getElementById('f_name').value = c.name;
-            document.getElementById('f_phone').value = c.phone;
-            document.getElementById('f_addr').value = c.addr;
-            document.getElementById('f_items').value = c.items;
-            document.getElementById('f_debt').value = c.debt;
-            document.getElementById('f_date').value = c.date;
-            document.getElementById('modalTitle').innerText = "編輯客戶";
-            openModal();
-        }
-
-        function exportExcel() {
-            const ws = XLSX.utils.json_to_sheet(customers);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Data");
-            XLSX.writeFile(wb, "CRM_Data.xlsx");
-        }
-
-        function importExcel(input) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const workbook = XLSX.read(e.target.result, {type: 'binary'});
-                customers = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                localStorage.setItem('crm_data', JSON.stringify(customers));
-                render();
-            };
-            reader.readAsBinaryString(input.files[0]);
-        }
-
-        function addToCal(n, d) {
-            const time = d.replace(/[-:]/g, '');
-            window.open(`https://www.google.com/calendar/render?action=TEMPLATE&text=送貨:${n}&dates=${time}/${time}`, '_blank');
-        }
-
-        document.getElementById('searchInput').oninput = (e) => {
-            const v = e.target.value.toLowerCase();
-            render(customers.filter(c => c.name.toLowerCase().includes(v) || c.phone.includes(v)));
-        };
-
-        function openModal() { document.getElementById('modal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); document.getElementById('customerForm').reset(); document.getElementById('editIdx').value=""; document.getElementById('modalTitle').innerText = "新增客戶";}
-
-        function toggleTheme() {
-            const html = document.documentElement;
-            const isDark = html.classList.toggle('dark');
-            html.classList.toggle('light', !isDark);
-            document.getElementById('themeIcon').setAttribute('data-lucide', isDark ? 'moon' : 'sun');
-            lucide.createIcons();
-        }
-
-        function handleCredentialResponse(response) {
-            const payload = JSON.parse(atob(response.credential.split('.')[1]));
-            document.getElementById('googleBtnWrapper').innerHTML = `
-                <div class="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-full border border-white/10">
-                    <img src="${payload.picture}" class="w-5 h-5 rounded-full">
-                    <span class="text-[10px] hidden md:block font-medium">${payload.name}</span>
-                    <button onclick="location.reload()" class="text-[10px] opacity-40">登出</button>
-                </div>
-            `;
-        }
-
-        render();
-    </script>
-</body>
+  </body>
 </html>
