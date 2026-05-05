@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客戶管理系統</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .add-form {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .btn-danger {
+            background: #e74c3c;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #2c3e50;
+            color: white;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .address-link {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        .actions button {
+            margin-right: 8px;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        .debt {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .search-bar {
+            margin-bottom: 15px;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 客戶管理系統</h1>
+
+        <!-- 新增/編輯表單 -->
+        <div class="add-form">
+            <h2 id="form-title">新增客戶</h2>
+            <div class="form-grid">
+                <div>
+                    <label>姓名</label>
+                    <input type="text" id="name" placeholder="王小明" required>
+                </div>
+                <div>
+                    <label>電話</label>
+                    <input type="tel" id="phone" placeholder="0912-345678" required>
+                </div>
+                <div>
+                    <label>本次商品細項</label>
+                    <textarea id="product" rows="3" placeholder="iPhone 16 Pro 256GB ×1\nAirPods Pro 2 ×1"></textarea>
+                </div>
+                <div>
+                    <label>欠款金額 (元)</label>
+                    <input type="number" id="debt" placeholder="0" value="0">
+                </div>
+                <div>
+                    <label>地址</label>
+                    <input type="text" id="address" placeholder="台北市信義區信義路五段7號">
+                </div>
+            </div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button onclick="saveCustomer()">💾 儲存客戶</button>
+                <button onclick="cancelEdit()" style="background:#95a5a6;">取消</button>
+            </div>
+        </div>
+
+        <!-- 搜尋 -->
+        <input type="text" id="search" class="search-bar" placeholder="🔍 搜尋姓名、電話或地址..." onkeyup="filterTable()">
+
+        <!-- 客戶列表 -->
+        <table id="customerTable">
+            <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>電話</th>
+                    <th>本次商品細項</th>
+                    <th>欠款金額</th>
+                    <th>地址</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let customers = JSON.parse(localStorage.getItem('customers')) || [];
+        let editingId = null;
+
+        function renderTable() {
+            const tbody = document.querySelector('#customerTable tbody');
+            tbody.innerHTML = '';
+
+            customers.forEach((customer, index) => {
+                const row = document.createElement('tr');
+                
+                // 地址轉 Google Maps 連結
+                const mapsUrl = customer.address 
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}` 
+                    : '#';
+
+                row.innerHTML = `
+                    <td><strong>${customer.name}</strong></td>
+                    <td>${customer.phone}</td>
+                    <td style="white-space: pre-line;">${customer.product || '—'}</td>
+                    <td class="debt">NT$ ${parseInt(customer.debt || 0).toLocaleString()}</td>
+                    <td>
+                        ${customer.address 
+                            ? `<a href="${mapsUrl}" target="_blank" class="address-link">${customer.address}</a>` 
+                            : '—'}
+                    </td>
+                    <td class="actions">
+                        <button onclick="editCustomer(${index})">✏️ 編輯</button>
+                        <button onclick="deleteCustomer(${index})" class="btn-danger">🗑️ 刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function saveCustomer() {
+            const name = document.getElementById('name').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const product = document.getElementById('product').value.trim();
+            const debt = document.getElementById('debt').value;
+            const address = document.getElementById('address').value.trim();
+
+            if (!name || !phone) {
+                alert('姓名與電話為必填欄位！');
+                return;
+            }
+
+            const customer = { name, phone, product, debt: parseInt(debt) || 0, address };
+
+            if (editingId !== null) {
+                customers[editingId] = customer;
+                editingId = null;
+                document.getElementById('form-title').textContent = '新增客戶';
+            } else {
+                customers.push(customer);
+            }
+
+            localStorage.setItem('customers', JSON.stringify(customers));
+            renderTable();
+            clearForm();
+        }
+
+        function editCustomer(index) {
+            const c = customers[index];
+            document.getElementById('name').value = c.name;
+            document.getElementById('phone').value = c.phone;
+            document.getElementById('product').value = c.product || '';
+            document.getElementById('debt').value = c.debt || 0;
+            document.getElementById('address').value = c.address || '';
+            
+            editingId = index;
+            document.getElementById('form-title').textContent = '編輯客戶';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteCustomer(index) {
+            if (confirm('確定要刪除這位客戶嗎？')) {
+                customers.splice(index, 1);
+                localStorage.setItem('customers', JSON.stringify(customers));
+                renderTable();
+            }
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            document.getElementById('form-title').textContent = '新增客戶';
+            clearForm();
+        }
+
+        function clearForm() {
+            document.getElementById('name').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('product').value = '';
+            document.getElementById('debt').value = '0';
+            document.getElementById('address').value = '';
+        }
+
+        function filterTable() {
+            const keyword = document.getElementById('search').value.toLowerCase();
+            const rows = document.querySelectorAll('#customerTable tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(keyword) ? '' : 'none';
+            });
+        }
+
+        // 初始化
+        window.onload = () => {
+            renderTable();
+        };
+    </script>
+</body>
+</html>
